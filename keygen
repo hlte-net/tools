@@ -1,0 +1,55 @@
+#!/usr/bin/env elixir
+
+defmodule Keygen do
+  @defaults %{
+    keyFilePath: Path.expand("./keyfile"),
+    keySizeBytes: "512"
+  }
+
+  def main(["-h"]), do: usage()
+  def main(["-help"]), do: usage()
+  def main(["--help"]), do: usage()
+
+  def main([]) do
+    main([@defaults.keyFilePath, @defaults.keySizeBytes])
+  end
+
+  def main([keyFilePath]) do
+    main([keyFilePath, @defaults.keySizeBytes])
+  end
+
+  def main([keyFilePath, keySizeBytes]) do
+    case File.stat(keyFilePath) do
+      {:error, _reason} ->
+        case Integer.parse(keySizeBytes) do
+          {keySizeInt, ""} ->
+            key = :crypto.strong_rand_bytes(keySizeInt)
+            case File.write(keyFilePath, key, [:raw]) do
+              :ok ->
+                File.chmod!(keyFilePath, 0o400)
+                IO.puts("Wrote key to #{keyFilePath}")
+
+              {:error, reason} ->
+                IO.puts("failed to write #{keyFilePath}: '#{reason}'")
+            end
+
+          _ ->
+            IO.puts("cannot parse keySizeBytes '#{inspect(keySizeBytes)}'")
+          end
+
+      {:ok, _stat} ->
+        IO.puts("keyfile already exists, will not overwrite")
+    end
+  end
+
+  def main(_), do: usage()
+
+  defp usage() do
+    IO.puts("Usage: keygen [keyFilePath] [keySizeBytes]\n\n" <>
+      "Defaults when not specified:" <>
+      "\n\tkeyFilePath:  #{@defaults.keyFilePath}" <>
+      "\n\tkeySizeBytes: #{@defaults.keySizeBytes}")
+  end
+end
+
+Keygen.main(System.argv())
