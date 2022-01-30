@@ -3,7 +3,8 @@
 defmodule Keygen do
   @defaults %{
     keyFilePath: Path.expand("./keyfile"),
-    keySizeBytes: "512"
+    keySizeBytes: "32",
+    fileMode: 0o400
   }
 
   def main(["-h"]), do: usage()
@@ -26,8 +27,13 @@ defmodule Keygen do
             key = :crypto.strong_rand_bytes(keySizeInt)
             case File.write(keyFilePath, key, [:raw]) do
               :ok ->
-                File.chmod!(keyFilePath, 0o400)
-                IO.puts("Wrote key to #{keyFilePath}")
+                File.chmod!(keyFilePath, @defaults.fileMode)
+                keyHash = :crypto.hash(:sha256, key) |> :binary.encode_hex() |> :string.lowercase()
+                IO.puts("** Generated #{keySizeInt} bytes of key material with SHA256 checksum #{keyHash}\n")
+                IO.puts("** Wrote raw key to #{keyFilePath}\n\n")
+                IO.puts("** Copy/paste the following hexadecimal version into the browser extension:\n")
+                IO.puts(:binary.encode_hex(key) |> :string.lowercase())
+                IO.puts("\n** IMPORTANT: The above will *not be shown again*!")
 
               {:error, reason} ->
                 IO.puts("failed to write #{keyFilePath}: '#{reason}'")
